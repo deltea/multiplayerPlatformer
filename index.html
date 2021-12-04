@@ -2,15 +2,30 @@
 <html lang="en" dir="ltr">
   <head>
     <meta charset="utf-8">
-    <title>Chat App</title>
+    <title>Multiplayer Platformer</title>
     <style>
     </style>
   </head>
   <body>
-    <ul id="messages"></ul>
     <script src="/socket.io/socket.io.js"></script>
+    <script src="//cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+    <script src="script.js"></script>
     <script>
       const socket = io();
+      var Client = {};
+
+      Client.askNewPlayer = function(){
+        socket.emit("newPlayer");
+      };
+      socket.on("newPlayer", (player) => {
+        game.addNewPlayer(player.id, player.x, player.y);
+      });
+      socket.on("allPlayers", (players) => {
+        console.log(players);
+        for (var x = 0; x < players.length; x++) {
+          game.addNewPlayer(players[x].id, players[x].x, players[x].y);
+        }
+      });
     </script>
   </body>
 </html>
