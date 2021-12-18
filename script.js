@@ -1,7 +1,8 @@
-// Multiplayer Platformer using Socket.io
+// Multiplayer Platformer using socket.io
 // All the variables
 let game = {
-  players: {}
+  players: {},
+  socket: {}
 };
 
 // Preload: Load all the assets
@@ -20,55 +21,52 @@ function preload() {
 
 // Create: Create all the sprites and colliders
 function create() {
+  game.socket = io();
   // Player group
   game.otherPlayers = this.physics.add.group();
 
   // Adds a new player to server
-  socket.on("currentPlayers", function(players) {
+  game.socket.on("currentPlayers", function(players) {
     Object.keys(players).forEach(id => {
-      if (players[id].playerId === socket.id) {
-        game.addNewPlayer(self, players[id]);
+      if (players[id].id === game.socket.id) {
+        game.addNewPlayer(players[id]);
       } else {
-        game.addOtherPlayers(self, players[id]);
+        game.addOtherPlayers(players[id]);
       }
     });
   });
-  socket.on("newPlayer", function(playerInfo) {
-    game.addOtherPlayers(self, playerInfo);
+  game.socket.on("newPlayer", function(playerInfo) {
+    game.addOtherPlayers(playerInfo);
   });
-  socket.on("disconnect", function (playerId) {
-    game.otherPlayers.getChildren().forEach(function (otherPlayer) {
-      if (playerId === otherPlayer.playerId) {
-        otherPlayer.destroy();
-      }
-    });
-  });
-  socket.on("playerMoved", function(playerInfo) {
+  game.socket.on("removePlayer", function(playerId) {
     game.otherPlayers.getChildren().forEach(function(otherPlayer) {
-      if (playerInfo.playerId === otherPlayer.playerId) {
+      if (playerId === otherPlayer.id) {
+        otherPlayer.destroy();
+        delete players[game.socket.id]
+      }
+    });
+  });
+  game.socket.on("playerMoved", function(playerInfo) {
+    game.otherPlayers.getChildren().forEach(function(otherPlayer) {
+      if (playerInfo.id === otherPlayer.id) {
         otherPlayer.setPosition(playerInfo.x, playerInfo.y);
       }
     });
   });
-  game.addNewPlayer = (self, playerInfo) => {
-    game.player = this.physics.add.sprite(playerInfo.x, playerInfo.y, "playerJump");
+  game.addNewPlayer = (playerInfo) => {
+    game.player = this.physics.add.sprite(playerInfo.x, playerInfo.y, "playerJump").setScale(2);
     game.player.setCollideWorldBounds(true);
   }
-  game.addOtherPlayers = (self, playerInfo) => {
-    const otherPlayer = this.physics.add.sprite(playerInfo.x, playerInfo.y, "playerJump");
-    otherPlayer.playerId = playerInfo.playerId;
-    otherPlayer.setCollideWorldBounds(true);
+  game.addOtherPlayers = (playerInfo) => {
+    console.log(playerInfo);
+    const otherPlayer = this.physics.add.sprite(playerInfo.x, playerInfo.y, "playerJump").setScale(2);
+    otherPlayer.id = playerInfo.id;
     game.otherPlayers.add(otherPlayer);
+    otherPlayer.setCollideWorldBounds(true);
   }
 
   // Input
   game.cursors = this.input.keyboard.createCursorKeys();
-
-  // Create player sprite
-  // game.player = this.physics.add.sprite(100, 100, "playerJump");
-  Client.askNewPlayer();
-
-  // Bounds
 
   // Animations
   // Walk
@@ -143,9 +141,15 @@ function update() {
       // Jump
       game.player.setVelocityY(-800);
     }
-    if (keyPress(Phaser.Input.Keyboard.KeyCodes.UP) && game.jumpsMade % 2 === 0 && !game.player.body.blocked.down && game.abilities.doubleJumps) {
-      // Jump
-      game.player.setVelocityY(-800);
+    if (game.player.oldPosition && (game.player.x !== game.player.oldPosition.x || game.player.y !== game.player.oldPosition.y)) {
+      game.socket.emit("playerMovement", {
+        x: game.player.x,
+        y: game.player.y
+      });
+    }
+    game.player.oldPosition = {
+      x: game.player.x,
+      y: game.player.y
     }
   }
 }
