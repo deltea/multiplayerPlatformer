@@ -20,6 +20,8 @@ function preload() {
 }
 
 // Create: Create all the sprites and colliders
+const {Server} = require("socket.io");
+const io = new Server(server);
 function create() {
   game.socket = io();
   // Player group
